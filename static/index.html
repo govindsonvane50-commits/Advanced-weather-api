@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeatherSphere - Real-Time Weather & Predictive Intelligence</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.12); }
+    .glass-card { background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid rgba(255, 255, 255, 0.14); }
+    .sparkle-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sparkle-input:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(129, 140, 248, 0.9);
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.4), inset 0 0 10px rgba(99, 102, 241, 0.15);
+    }
+    @keyframes floatOrb {
+      0%, 100% { transform: translate(0px, 0px) scale(1); }
+      50% { transform: translate(25px, -30px) scale(1.1); }
+    }
+    .orb-1 { animation: floatOrb 8s ease-in-out infinite; }
+    .orb-2 { animation: floatOrb 10s ease-in-out infinite reverse; }
+    .orb-3 { animation: floatOrb 12s ease-in-out infinite 2s; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    @keyframes spinPropeller {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .windmill-spin {
+      animation: spinPropeller 2s linear infinite;
+      transform-origin: center;
+    }
+
+    @keyframes pulseSunRays {
+      0%, 100% { transform: scale(1); opacity: 0.75; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+    .sun-ray-anim {
+      animation: pulseSunRays 3s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    @keyframes rainDropAnim {
+      0% { transform: translateY(-8px); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateY(22px); opacity: 0; }
+    }
+    .rain-drop-1 { animation: rainDropAnim 0.8s linear infinite; }
+    .rain-drop-2 { animation: rainDropAnim 0.7s linear infinite 0.25s; }
+    .rain-drop-3 { animation: rainDropAnim 0.9s linear infinite 0.5s; }
+
+    @keyframes lightningAnim {
+      0%, 88%, 100% { opacity: 0; }
+      90%, 94% { opacity: 1; filter: drop-shadow(0 0 12px #fbbf24); }
+    }
+    .lightning-flash { animation: lightningAnim 3.5s infinite; }
+
+    @keyframes cloudFloatAnim {
+      0%, 100% { transform: translateX(-8px); }
+      50% { transform: translateX(8px); }
+    }
+    .cloud-drift { animation: cloudFloatAnim 4s ease-in-out infinite; }
+
+    @keyframes moonGlowAnim {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(199, 210, 254, 0.4)); }
+      50% { filter: drop-shadow(0 0 18px rgba(199, 210, 254, 0.8)); }
+    }
+    .moon-glow { animation: moonGlowAnim 3s ease-in-out infinite; }
+
+    @keyframes inputPulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
+      50% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.4); }
+    }
+    .active-typing { animation: inputPulseGlow 2s infinite; }
+  </style>
+</head>
+<body id="app-body" class="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white relative overflow-x-hidden transition-all duration-700">
+
+  <canvas id="weather-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div id="orb-bg-1" class="orb-1 absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl transition-colors duration-700"></div>
+    <div id="orb-bg-2" class="orb-2 absolute top-1/3 -right-32 w-[30rem] h-[30rem] rounded-full bg-fuchsia-600/15 blur-3xl transition-colors duration-700"></div>
+    <div id="orb-bg-3" class="orb-3 absolute -bottom-32 left-1/3 w-[28rem] h-[28rem] rounded-full bg-teal-500/15 blur-3xl transition-colors duration-700"></div>
+  </div>
+
+  <nav class="border-b border-white/10 glass sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div id="nav-brand-icon" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 transition-all duration-500">
+          <i class="fa-solid fa-cloud-sun text-white text-xl"></i>
+        </div>
+        <div>
+          <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent">WeatherSphere</span>
+          <span id="nav-weather-badge" class="hidden sm:inline-block text-xs ml-2 px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">FastAPI + MySQL Console</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="weather-status-pill" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs font-semibold">
+          <span id="pill-indicator" class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+          <span id="pill-condition" class="text-slate-200">Atmosphere</span>
+        </div>
+
+        <a href="/docs" target="_blank" class="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 transition px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20">
+          <i class="fa-solid fa-book-open"></i> <span class="hidden md:inline">Swagger Docs</span>
+        </a>
+
+        <div id="user-badge" class="hidden items-center gap-2 px-3 py-1.5 rounded-full glass text-sm font-medium text-indigo-200">
+          <i class="fa-solid fa-circle-user text-indigo-400"></i>
+          <span id="username-display"></span>
+          <button onclick="logout()" class="ml-2 text-rose-400 hover:text-rose-300 text-xs transition" title="Logout">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full relative z-10 flex flex-col justify-center">
+    <div id="auth-wrapper" class="w-full flex items-center justify-center py-4">
+      <div id="auth-container" class="max-w-md w-full relative">
+        <div class="absolute -inset-1 rounded-3xl bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-teal-400 opacity-40 blur-xl animate-pulse"></div>
+        
+        <div class="relative glass-card rounded-3xl p-7 sm:p-8 shadow-2xl border border-white/15">
+          <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500/25 to-purple-500/25 text-indigo-300 border border-indigo-400/30 mb-3 shadow-inner">
+              <i class="fa-solid fa-wand-magic-sparkles text-xl"></i>
+            </div>
+            <h1 id="auth-title" class="text-2xl font-bold tracking-tight text-white">Welcome Back</h1>
+            <p id="auth-subtitle" class="text-xs text-slate-400 mt-1">Sign in to experience personalized weather & 24h predictions</p>
+          </div>
+
+          <div class="flex rounded-2xl bg-white/5 p-1 mb-6 border border-white/10">
+            <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white shadow-md transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Login
+            </button>
+            <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 text-xs font-semibold rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-user-plus"></i> Register
+            </button>
+          </div>
+
+          <div id="form-login" class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Username</span>
+                <span id="login-user-status" class="text-[10px] text-indigo-300 opacity-80">Required</span>
+              </label>
+              <div class="relative">
+                <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                <input type="text" id="login-username" placeholder="Enter username" class="w-full pl-10 pr-4 py-2.5 rounded-xl sparkle-input text-white placeholder-slate-500 focus:outline-none text-sm" oninput="validateLoginInput()">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Password</span>
+                <span class="text-[10px] text-indigo-300 opacity-80">Secured with Bcrypt</span>
+              </label>
+              <div class="relative">
+                <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                <input type="password" id="login-password" placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 rounded-xl sparkle-input text-white placeholder-slate-500 focus:outline-none text-sm" onkeydown="if(event.key === 'Enter') loginUser()">
+                <button type="button" onclick="togglePasswordVisibility('login-password', 'login-eye-icon')" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-white transition text-xs">
+                  <i id="login-eye-icon" class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <button onclick="loginUser()" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 font-semibold text-sm shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+              <span>Sign In</span> <i class="fa-solid fa-sparkles text-xs text-amber-300"></i>
+            </button>
+          </div>
+
+          <div id="form-register" class="space-y-4 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Choose Username</span>
+                <span id="reg-user-badge" class="text-[10px] text-teal-300 opacity-80 flex items-center gap-1">
+                  <i class="fa-solid fa-circle-info text-[9px]"></i> Min 3 chars
+                </span>
+              </label>
+              <div class="relative">
+                <i class="fa-solid fa-user-astronaut absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                <input type="text" id="reg-username" placeholder="Pick a username" class="w-full pl-10 pr-10 py-2.5 rounded-xl sparkle-input text-white placeholder-slate-500 focus:outline-none text-sm" oninput="handleRegUsername(this.value)">
+                <span id="reg-user-check" class="absolute right-3.5 top-3.5 text-xs text-emerald-400 hidden">
+                  <i class="fa-solid fa-circle-check"></i>
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Create Password</span>
+                <span id="reg-pass-badge" class="text-[10px] text-slate-400 flex items-center gap-1">
+                  <i class="fa-solid fa-shield-halved text-[9px]"></i> Security: <strong id="strength-label" class="text-slate-400 font-bold ml-0.5">Empty</strong>
+                </span>
+              </label>
+              <div class="relative">
+                <i class="fa-solid fa-key absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                <input type="password" id="reg-password" placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 rounded-xl sparkle-input text-white placeholder-slate-500 focus:outline-none text-sm" oninput="handleRegPassword(this.value)" onkeydown="if(event.key === 'Enter') registerUser()">
+                <button type="button" onclick="togglePasswordVisibility('reg-password', 'reg-eye-icon')" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-white transition text-xs">
+                  <i id="reg-eye-icon" class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+
+              <div class="mt-2.5">
+                <div class="w-full h-1.5 rounded-full bg-white/10 overflow-hidden flex">
+                  <div id="strength-bar-1" class="h-full w-1/3 border-r border-slate-900/40 transition-all duration-300 bg-transparent"></div>
+                  <div id="strength-bar-2" class="h-full w-1/3 border-r border-slate-900/40 transition-all duration-300 bg-transparent"></div>
+                  <div id="strength-bar-3" class="h-full w-1/3 transition-all duration-300 bg-transparent"></div>
+                </div>
+                <p id="strength-hint" class="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                  <i class="fa-solid fa-sparkles text-[8px] text-indigo-400"></i> Combine uppercase, numbers & 6+ chars
+                </p>
+              </div>
+            </div>
+
+            <button onclick="registerUser()" class="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 via-emerald-600 to-teal-700 hover:from-teal-600 hover:to-emerald-800 font-semibold text-sm shadow-lg shadow-emerald-500/30 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+              <span>Create Account</span> <i class="fa-solid fa-sparkles text-xs text-amber-300"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="dashboard-container" class="grid grid-cols-1 lg:grid-cols-12 gap-8 hidden">
+      <div class="lg:col-span-8 space-y-6">
+        <div class="glass-card rounded-3xl p-6 shadow-xl relative overflow-hidden">
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-400"></i>
+              <input type="text" id="city-input" placeholder="Search city (e.g., Pune, Mumbai, London, Tokyo)..." class="w-full pl-11 pr-4 py-3 rounded-2xl sparkle-input text-white placeholder-slate-400 focus:outline-none transition" onkeydown="if(event.key === 'Enter') searchWeather()">
+            </div>
+            <button onclick="searchWeather()" class="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-location-arrow"></i> Check Weather
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-white/10 text-xs">
+            <span class="text-slate-400 font-medium mr-1 flex items-center gap-1">
+              <i class="fa-solid fa-fire text-amber-400 text-[10px]"></i> Quick:
+            </span>
+            <button onclick="quickSearch('Pune')" class="px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-indigo-400/40 transition">Pune</button>
+            <button onclick="quickSearch('Mumbai')" class="px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-indigo-400/40 transition">Mumbai</button>
+            <button onclick="quickSearch('Delhi')" class="px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-indigo-400/40 transition">Delhi</button>
+            <button onclick="quickSearch('London')" class="px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-indigo-400/40 transition">London</button>
+            <button onclick="quickSearch('Tokyo')" class="px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-indigo-400/40 transition">Tokyo</button>
+          </div>
+        </div>
+
+        <div id="weather-card" class="glass-card rounded-3xl p-8 relative overflow-hidden shadow-2xl transition-all duration-500">
+          <div id="weather-placeholder" class="py-12 text-center text-slate-400">
+            <div class="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto mb-4 text-indigo-400 text-2xl border border-indigo-400/20">
+              <i class="fa-solid fa-cloud-bolt"></i>
+            </div>
+            <p class="font-medium text-slate-200">Search for any city above</p>
+            <p class="text-xs text-slate-500 mt-1">Background theme & 24h predictions will automatically synchronize</p>
+          </div>
+
+          <div id="weather-data" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <span id="w-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Live Observation
+                  </span>
+                  <span id="w-condition-tag" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white border border-white/15"></span>
+                </div>
+                <h2 id="w-city" class="text-3xl sm:text-5xl font-black tracking-tight text-white"></h2>
+                <p id="w-country" class="text-sm font-medium text-indigo-200 mt-1"></p>
+              </div>
+
+              <button id="btn-fav" onclick="addToFavorites()" class="px-4 py-2.5 rounded-2xl glass hover:bg-white/15 text-xs font-semibold flex items-center gap-2 transition border border-white/15 text-amber-300 self-start shadow-md">
+                <i class="fa-regular fa-star"></i> Save to Favorites
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-temperature-half text-rose-400"></i> Temperature
+                </span>
+                <div class="flex items-baseline gap-1 mt-2">
+                  <span id="w-temp" class="text-3xl sm:text-4xl font-extrabold text-white"></span>
+                  <span class="text-lg font-bold text-indigo-300">°C</span>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-wind text-cyan-400"></i> Wind Speed
+                </span>
+                <div class="flex items-baseline gap-1 mt-2">
+                  <span id="w-wind" class="text-3xl sm:text-4xl font-extrabold text-white"></span>
+                  <span class="text-xs font-semibold text-slate-400">km/h</span>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-clock text-amber-400"></i> Time of Day
+                </span>
+                <div class="flex items-center gap-2 mt-2">
+                  <div id="w-day-icon" class="text-2xl"></div>
+                  <span id="w-day-text" class="text-base font-bold text-white"></span>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-umbrella text-indigo-400"></i> Rain Likelihood
+                </span>
+                <div class="mt-2">
+                  <span id="w-rain-badge" class="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-gradient-to-r from-indigo-900/30 via-purple-900/20 to-slate-900/40 border border-white/10">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-sm">
+                    <i class="fa-solid fa-chart-line"></i>
+                  </div>
+                  <h3 class="text-sm font-bold text-white">Predictive Weather Intelligence (Next 24H)</h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 flex items-center gap-1 text-slate-300">
+                    <i class="fa-solid fa-arrow-up text-rose-400"></i> Peak: <strong id="pred-peak" class="text-white ml-0.5">--</strong>
+                  </span>
+                  <span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 flex items-center gap-1 text-slate-300">
+                    <i class="fa-solid fa-arrow-down text-cyan-400"></i> Low: <strong id="pred-low" class="text-white ml-0.5">--</strong>
+                  </span>
+                </div>
+              </div>
+              <p id="pred-advisory" class="text-xs leading-relaxed text-slate-300 font-medium"></p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-hourglass-half text-indigo-400"></i> Hourly Forecast (Next 24 Hours)
+                </h3>
+                <span class="text-[11px] text-slate-400">Scroll horizontally &rarr;</span>
+              </div>
+              <div id="hourly-forecast-list" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-4 space-y-6">
+        <div class="glass-card rounded-3xl p-6 shadow-xl">
+          <div class="flex rounded-xl bg-white/5 p-1 mb-4 border border-white/10">
+            <button id="tab-side-fav" onclick="switchSidebarTab('favorites')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-star text-[10px] text-amber-300"></i> Favorites
+            </button>
+            <button id="tab-side-hist" onclick="switchSidebarTab('history')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-clock-rotate-left text-[10px]"></i> History
+            </button>
+            <button id="tab-side-advice" onclick="switchSidebarTab('advice')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-shield-heart text-[10px] text-rose-400"></i> Advice
+            </button>
+          </div>
+
+          <div id="panel-favorites">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-medium text-slate-400">Saved to MySQL DB</span>
+              <button onclick="loadFavorites()" class="text-xs text-indigo-300 hover:text-white transition" title="Refresh">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+            <div id="favorites-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <p class="text-xs text-slate-500 py-6 text-center">No favorites added yet.</p>
+            </div>
+          </div>
+
+          <div id="panel-history" class="hidden">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-medium text-slate-400">Recent Searches</span>
+              <button onclick="clearHistory()" class="text-[11px] text-rose-400 hover:text-rose-300 transition">
+                Clear
+              </button>
+            </div>
+            <div id="history-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <p class="text-xs text-slate-500 py-6 text-center">No recent searches yet.</p>
+            </div>
+          </div>
+
+          <div id="panel-advice" class="hidden space-y-3">
+            <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+              <div class="flex items-center gap-2 mb-1.5">
+                <i class="fa-solid fa-shirt text-indigo-400 text-xs"></i>
+                <span class="text-xs font-bold text-white">Attire Recommendation</span>
+              </div>
+              <p id="advice-clothing" class="text-xs text-slate-300">Search a city to get tailored clothing tips.</p>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+              <div class="flex items-center gap-2 mb-1.5">
+                <i class="fa-solid fa-person-running text-emerald-400 text-xs"></i>
+                <span class="text-xs font-bold text-white">Outdoor Activity Index</span>
+              </div>
+              <p id="advice-outdoor" class="text-xs text-slate-300">Weather comfort analysis for sports & walks.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-6 shadow-xl">
+          <h3 class="font-bold text-sm text-white mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-gauge-high text-cyan-400"></i> Atmospheric Conditions
+          </h3>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <span class="text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-temperature-arrow-up text-amber-400"></i> Feels Like
+              </span>
+              <div class="mt-1.5 flex items-baseline gap-1">
+                <span id="metric-feels" class="text-lg font-bold text-white">--</span>
+                <span class="text-xs text-indigo-300">°C</span>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <span class="text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-droplet text-blue-400"></i> Humidity
+              </span>
+              <div class="mt-1.5 flex items-baseline gap-1">
+                <span id="metric-humidity" class="text-lg font-bold text-white">--</span>
+                <span class="text-xs text-slate-400">%</span>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <span class="text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-compress text-purple-400"></i> Pressure
+              </span>
+              <div class="mt-1.5 flex items-baseline gap-1">
+                <span id="metric-pressure" class="text-lg font-bold text-white">--</span>
+                <span class="text-xs text-slate-400">hPa</span>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <span class="text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-cloud text-slate-400"></i> Cloud Cover
+              </span>
+              <div class="mt-1.5 flex items-baseline gap-1">
+                <span id="metric-clouds" class="text-lg font-bold text-white">--</span>
+                <span class="text-xs text-slate-400">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+            <span class="text-slate-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-compass text-teal-400"></i> Wind Bearing
+            </span>
+            <span id="metric-wind-dir" class="font-bold text-white">--°</span>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-3xl p-6 shadow-xl relative overflow-hidden">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Live Dynamic Simulator
+            </h3>
+            <span id="sim-status-tag" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-indigo-300 border border-white/10">Real-time physics</span>
+          </div>
+
+          <div id="sim-stage" class="h-44 rounded-2xl bg-gradient-to-b from-white/5 to-white/0 border border-white/10 relative overflow-hidden flex items-center justify-center p-4">
+            <div id="sim-weather-scene" class="w-full h-full relative flex items-center justify-center">
+              <div class="text-center text-slate-500 text-xs">
+                <i class="fa-solid fa-globe text-2xl mb-2 text-indigo-400/50"></i>
+                <p>Awaiting city data to simulate conditions</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-white/10 grid grid-cols-2 gap-3 text-xs">
+            <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
+              <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                <svg id="sim-windmill" class="w-5 h-5 windmill-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                  <path d="M12 9V3M12 9l6 4M12 9l-6 4" />
+                </svg>
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-400 block">Wind Turbine</span>
+                <span id="sim-wind-val" class="font-bold text-white">0 km/h</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 text-sm">
+                <i id="sim-cycle-icon" class="fa-solid fa-sun"></i>
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-400 block">Diurnal Phase</span>
+                <span id="sim-cycle-val" class="font-bold text-white">Daylight</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="border-t border-white/10 py-4 glass text-center text-xs text-slate-500 relative z-10">
+    WeatherSphere &bull; Dynamic Weather Adaptive System with FastAPI & MySQL
+  </footer>
+
+  <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-2xl glass-card border border-white/20 text-sm font-semibold shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none z-50 flex items-center gap-2.5"></div>
+
+  <script>
+    let currentCity = "";
+    let activeMode = "sparkle";
+
+    const weatherThemes = {
+      sunny: {
+        bg: "bg-gradient-to-br from-amber-950/70 via-sky-950 to-slate-950",
+        orb1: "bg-amber-500/25",
+        orb2: "bg-orange-500/20",
+        orb3: "bg-sky-500/20",
+        particleMode: "sun_dust",
+        particleColors: ["#fde047", "#f59e0b", "#fbbf24", "#ffffff"],
+        pillText: "Sunny & Clear",
+        pillColor: "bg-amber-400"
+      },
+      night: {
+        bg: "bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900",
+        orb1: "bg-indigo-600/25",
+        orb2: "bg-blue-600/20",
+        orb3: "bg-purple-900/20",
+        particleMode: "stars",
+        particleColors: ["#818cf8", "#c7d2fe", "#fde047", "#ffffff"],
+        pillText: "Clear Night",
+        pillColor: "bg-indigo-400"
+      },
+      rainy: {
+        bg: "bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950",
+        orb1: "bg-cyan-700/20",
+        orb2: "bg-blue-800/25",
+        orb3: "bg-slate-700/25",
+        particleMode: "rain",
+        particleColors: ["#38bdf8", "#0284c7", "#7dd3fc", "#e0f2fe"],
+        pillText: "Rainy Weather",
+        pillColor: "bg-cyan-400"
+      },
+      cloudy: {
+        bg: "bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900",
+        orb1: "bg-slate-600/25",
+        orb2: "bg-indigo-900/20",
+        orb3: "bg-zinc-700/20",
+        particleMode: "clouds",
+        particleColors: ["#94a3b8", "#cbd5e1", "#e2e8f0", "#ffffff"],
+        pillText: "Overcast / Clouds",
+        pillColor: "bg-slate-400"
+      },
+      thunder: {
+        bg: "bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900",
+        orb1: "bg-purple-600/30",
+        orb2: "bg-violet-700/25",
+        orb3: "bg-amber-500/15",
+        particleMode: "thunder",
+        particleColors: ["#c084fc", "#e879f9", "#fde047", "#ffffff"],
+        pillText: "Thunderstorm Alert",
+        pillColor: "bg-purple-400"
+      },
+      snow: {
+        bg: "bg-gradient-to-br from-slate-950 via-cyan-950 to-blue-950",
+        orb1: "bg-cyan-400/20",
+        orb2: "bg-sky-500/20",
+        orb3: "bg-indigo-400/15",
+        particleMode: "snow",
+        particleColors: ["#e0f2fe", "#bae6fd", "#7dd3fc", "#ffffff"],
+        pillText: "Snowy Atmosphere",
+        pillColor: "bg-sky-300"
+      }
+    };
+
+    function applyWeatherTheme(type) {
+      const theme = weatherThemes[type] || weatherThemes.sunny;
+      activeMode = theme.particleMode;
+
+      const body = document.getElementById("app-body");
+      body.className = `min-h-screen ${theme.bg} text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white relative overflow-x-hidden transition-all duration-700`;
+
+      document.getElementById("orb-bg-1").className = `orb-1 absolute -top-32 -left-32 w-96 h-96 rounded-full ${theme.orb1} blur-3xl transition-colors duration-700`;
+      document.getElementById("orb-bg-2").className = `orb-2 absolute top-1/3 -right-32 w-[30rem] h-[30rem] rounded-full ${theme.orb2} blur-3xl transition-colors duration-700`;
+      document.getElementById("orb-bg-3").className = `orb-3 absolute -bottom-32 left-1/3 w-[28rem] h-[28rem] rounded-full ${theme.orb3} blur-3xl transition-colors duration-700`;
+
+      const pillIndicator = document.getElementById("pill-indicator");
+      pillIndicator.className = `w-2 h-2 rounded-full ${theme.pillColor} animate-pulse`;
+      document.getElementById("pill-condition").textContent = theme.pillText;
+
+      particles.forEach(p => p.init(activeMode, theme.particleColors));
+    }
+
+    function applyAuthTheme() {
+      activeMode = "sparkle";
+      const body = document.getElementById("app-body");
+      body.className = "min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white relative overflow-x-hidden transition-all duration-700";
+
+      document.getElementById("orb-bg-1").className = "orb-1 absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl transition-colors duration-700";
+      document.getElementById("orb-bg-2").className = "orb-2 absolute top-1/3 -right-32 w-[30rem] h-[30rem] rounded-full bg-fuchsia-600/15 blur-3xl transition-colors duration-700";
+      document.getElementById("orb-bg-3").className = "orb-3 absolute -bottom-32 left-1/3 w-[28rem] h-[28rem] rounded-full bg-teal-500/15 blur-3xl transition-colors duration-700";
+
+      document.getElementById("weather-status-pill").classList.add("hidden");
+      particles.forEach(p => p.init("sparkle", ["#818cf8", "#c084fc", "#fde047", "#ffffff"]));
+    }
+
+    const canvas = document.getElementById("weather-canvas");
+    const ctx = canvas.getContext("2d");
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    class WeatherParticle {
+      constructor() {
+        this.init("sparkle", ["#818cf8", "#c084fc", "#fde047", "#ffffff"]);
+      }
+      init(mode, palette) {
+        this.mode = mode;
+        this.palette = palette || ["#ffffff"];
+        this.color = this.palette[Math.floor(Math.random() * this.palette.length)];
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+
+        if (mode === "rain") {
+          this.vx = -1;
+          this.vy = Math.random() * 8 + 10;
+          this.length = Math.random() * 12 + 8;
+          this.alpha = Math.random() * 0.5 + 0.3;
+        } else if (mode === "snow") {
+          this.vx = (Math.random() - 0.5) * 1;
+          this.vy = Math.random() * 1.5 + 0.8;
+          this.radius = Math.random() * 2 + 1;
+          this.alpha = Math.random() * 0.7 + 0.3;
+        } else if (mode === "thunder") {
+          this.vx = (Math.random() - 0.5) * 2;
+          this.vy = (Math.random() - 0.5) * 2;
+          this.radius = Math.random() * 2.5 + 0.5;
+          this.alpha = Math.random() * 0.8 + 0.2;
+        } else {
+          this.vx = (Math.random() - 0.5) * 0.3;
+          this.vy = -Math.random() * 0.4 - 0.1;
+          this.radius = Math.random() * 1.8 + 0.4;
+          this.alpha = Math.random() * 0.7 + 0.2;
+          this.alphaSpeed = Math.random() * 0.015 + 0.005;
+          this.growing = Math.random() > 0.5;
+        }
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.mode === "rain") {
+          if (this.y > canvas.height) {
+            this.y = -20;
+            this.x = Math.random() * canvas.width;
+          }
+        } else if (this.mode === "snow") {
+          if (this.y > canvas.height) {
+            this.y = -10;
+            this.x = Math.random() * canvas.width;
+          }
+        } else {
+          if (this.growing) {
+            this.alpha += this.alphaSpeed || 0.01;
+            if (this.alpha >= 0.9) this.growing = false;
+          } else {
+            this.alpha -= this.alphaSpeed || 0.01;
+            if (this.alpha <= 0.15) this.growing = true;
+          }
+          if (this.y < -10 || this.x < -10 || this.x > canvas.width + 10) {
+            this.y = canvas.height + 10;
+            this.x = Math.random() * canvas.width;
+          }
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, this.alpha));
+        if (this.mode === "rain") {
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y);
+          ctx.lineTo(this.x + this.vx, this.y + this.length);
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius || 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = this.color;
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    for (let i = 0; i < 70; i++) {
+      particles.push(new WeatherParticle());
+    }
+
+    function animateWeatherCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animateWeatherCanvas);
+    }
+    animateWeatherCanvas();
+
+    function renderWeatherSimulation(themeType, isDay, conditionText) {
+      const scene = document.getElementById("sim-weather-scene");
+      document.getElementById("sim-status-tag").textContent = conditionText || "Simulating";
+
+      if (themeType === "sunny") {
+        scene.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            <div class="w-24 h-24 rounded-full bg-amber-400/20 blur-xl absolute sun-ray-anim"></div>
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 shadow-xl flex items-center justify-center text-amber-900 text-2xl z-10">
+              <i class="fa-solid fa-sun text-white"></i>
+            </div>
+            <div class="absolute -right-4 -bottom-2 text-indigo-200/40 text-4xl cloud-drift">
+              <i class="fa-solid fa-cloud"></i>
+            </div>
+          </div>
+        `;
+      } else if (themeType === "night") {
+        scene.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            <div class="w-24 h-24 rounded-full bg-indigo-500/20 blur-xl absolute"></div>
+            <div class="text-indigo-200 text-6xl moon-glow z-10">
+              <i class="fa-solid fa-moon"></i>
+            </div>
+            <span class="absolute top-2 left-4 text-amber-200 text-xs animate-ping"><i class="fa-solid fa-star"></i></span>
+            <span class="absolute bottom-3 right-6 text-indigo-300 text-[10px] animate-pulse"><i class="fa-solid fa-star"></i></span>
+          </div>
+        `;
+      } else if (themeType === "rainy") {
+        scene.innerHTML = `
+          <div class="flex flex-col items-center justify-center">
+            <div class="text-cyan-300 text-5xl cloud-drift z-10 drop-shadow-lg">
+              <i class="fa-solid fa-cloud-showers-heavy"></i>
+            </div>
+            <div class="flex gap-4 mt-2">
+              <span class="w-1 h-3 rounded-full bg-cyan-400 rain-drop-1"></span>
+              <span class="w-1 h-4 rounded-full bg-sky-300 rain-drop-2"></span>
+              <span class="w-1 h-3 rounded-full bg-blue-400 rain-drop-3"></span>
+            </div>
+          </div>
+        `;
+      } else if (themeType === "thunder") {
+        scene.innerHTML = `
+          <div class="relative flex flex-col items-center justify-center">
+            <div class="text-purple-300 text-5xl cloud-drift z-10">
+              <i class="fa-solid fa-cloud"></i>
+            </div>
+            <div class="absolute top-6 text-amber-400 text-3xl lightning-flash z-20">
+              <i class="fa-solid fa-bolt-lightning"></i>
+            </div>
+          </div>
+        `;
+      } else if (themeType === "snow") {
+        scene.innerHTML = `
+          <div class="flex flex-col items-center justify-center">
+            <div class="text-sky-200 text-5xl cloud-drift z-10">
+              <i class="fa-solid fa-snowflake"></i>
+            </div>
+            <div class="flex gap-3 mt-2 text-sky-300 text-xs">
+              <i class="fa-solid fa-asterisk animate-bounce"></i>
+              <i class="fa-solid fa-snowflake animate-spin"></i>
+              <i class="fa-solid fa-asterisk animate-bounce" style="animation-delay: 0.3s"></i>
+            </div>
+          </div>
+        `;
+      } else {
+        scene.innerHTML = `
+          <div class="flex items-center justify-center relative">
+            <div class="text-slate-400 text-5xl cloud-drift z-10">
+              <i class="fa-solid fa-cloud"></i>
+            </div>
+            <div class="text-slate-500 text-4xl absolute -right-3 -top-2 cloud-drift" style="animation-delay: 1.5s">
+              <i class="fa-solid fa-cloud"></i>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById("toast");
+      toast.innerHTML = isError 
+        ? `<i class="fa-solid fa-circle-exclamation text-rose-400 text-base"></i> <span>${message}</span>`
+        : `<i class="fa-solid fa-circle-check text-emerald-400 text-base"></i> <span>${message}</span>`;
+      toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
+      setTimeout(() => {
+        toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
+      }, 3500);
+    }
+
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (input.type === "password") {
+        input.type = "text";
+        icon.className = "fa-solid fa-eye-slash text-indigo-400";
+      } else {
+        input.type = "password";
+        icon.className = "fa-solid fa-eye";
+      }
+    }
+
+    function switchAuthTab(tab) {
+      const tabLogin = document.getElementById("tab-login");
+      const tabReg = document.getElementById("tab-register");
+      const formLogin = document.getElementById("form-login");
+      const formReg = document.getElementById("form-register");
+      const title = document.getElementById("auth-title");
+      const subtitle = document.getElementById("auth-subtitle");
+
+      if (tab === "login") {
+        tabLogin.className = "flex-1 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white shadow-md transition flex items-center justify-center gap-2";
+        tabReg.className = "flex-1 py-2 text-xs font-semibold rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-2";
+        formLogin.classList.remove("hidden");
+        formReg.classList.add("hidden");
+        title.textContent = "Welcome Back";
+        subtitle.textContent = "Sign in to experience personalized weather & 24h predictions";
+      } else {
+        tabReg.className = "flex-1 py-2 text-xs font-semibold rounded-xl bg-teal-600 text-white shadow-md transition flex items-center justify-center gap-2";
+        tabLogin.className = "flex-1 py-2 text-xs font-semibold rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-2";
+        formReg.classList.remove("hidden");
+        formLogin.classList.add("hidden");
+        title.textContent = "Create Account";
+        subtitle.textContent = "Get access to live weather telemetry & favorite cities";
+      }
+    }
+
+    function validateLoginInput() {
+      const u = document.getElementById("login-username").value.trim();
+      const st = document.getElementById("login-user-status");
+      if (u.length > 0) {
+        st.textContent = "Ready";
+        st.className = "text-[10px] text-emerald-300 font-bold";
+      } else {
+        st.textContent = "Required";
+        st.className = "text-[10px] text-indigo-300 opacity-80";
+      }
+    }
+
+    function handleRegUsername(val) {
+      const check = document.getElementById("reg-user-check");
+      const badge = document.getElementById("reg-user-badge");
+      if (val.trim().length >= 3) {
+        check.classList.remove("hidden");
+        badge.innerHTML = '<i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Valid username';
+        badge.className = "text-[10px] text-emerald-400 font-bold flex items-center gap-1";
+      } else {
+        check.classList.add("hidden");
+        badge.innerHTML = '<i class="fa-solid fa-circle-info text-[9px]"></i> Min 3 chars';
+        badge.className = "text-[10px] text-teal-300 opacity-80 flex items-center gap-1";
+      }
+    }
+
+    function handleRegPassword(val) {
+      const b1 = document.getElementById("strength-bar-1");
+      const b2 = document.getElementById("strength-bar-2");
+      const b3 = document.getElementById("strength-bar-3");
+      const label = document.getElementById("strength-label");
+      const hint = document.getElementById("strength-hint");
+
+      [b1, b2, b3].forEach(b => b.className = "h-full w-1/3 transition-all duration-300 bg-transparent");
+
+      if (!val) {
+        label.textContent = "Empty";
+        label.className = "text-slate-400 font-bold ml-0.5";
+        hint.innerHTML = '<i class="fa-solid fa-sparkles text-[8px] text-indigo-400"></i> Combine uppercase, numbers & 6+ chars';
+        return;
+      }
+
+      let score = 0;
+      if (val.length >= 6) score++;
+      if (/[A-Z]/.test(val) || /[0-9]/.test(val)) score++;
+      if (val.length >= 8 && /[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+
+      if (score === 1) {
+        b1.className = "h-full w-1/3 transition-all duration-300 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]";
+        label.textContent = "Weak";
+        label.className = "text-rose-400 font-bold ml-0.5";
+        hint.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-[9px] text-rose-400"></i> Add numbers or uppercase letters';
+      } else if (score === 2) {
+        b1.className = "h-full w-1/3 transition-all duration-300 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]";
+        b2.className = "h-full w-1/3 transition-all duration-300 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]";
+        label.textContent = "Medium";
+        label.className = "text-amber-400 font-bold ml-0.5";
+        hint.innerHTML = '<i class="fa-solid fa-shield text-[9px] text-amber-400"></i> Good, lengthen to 8+ chars for max protection';
+      } else {
+        b1.className = "h-full w-1/3 transition-all duration-300 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]";
+        b2.className = "h-full w-1/3 transition-all duration-300 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]";
+        b3.className = "h-full w-1/3 transition-all duration-300 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]";
+        label.textContent = "Strong";
+        label.className = "text-emerald-400 font-bold ml-0.5";
+        hint.innerHTML = '<i class="fa-solid fa-shield-check text-[9px] text-emerald-400"></i> Excellent secure password!';
+      }
+    }
+
+    function switchSidebarTab(tab) {
+      const tabFav = document.getElementById("tab-side-fav");
+      const tabHist = document.getElementById("tab-side-hist");
+      const tabAdv = document.getElementById("tab-side-advice");
+      const pFav = document.getElementById("panel-favorites");
+      const pHist = document.getElementById("panel-history");
+      const pAdv = document.getElementById("panel-advice");
+
+      [tabFav, tabHist, tabAdv].forEach(t => {
+        t.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+      });
+      [pFav, pHist, pAdv].forEach(p => p.classList.add("hidden"));
+
+      if (tab === "favorites") {
+        tabFav.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm transition flex items-center justify-center gap-1.5";
+        pFav.classList.remove("hidden");
+      } else if (tab === "history") {
+        tabHist.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm transition flex items-center justify-center gap-1.5";
+        pHist.classList.remove("hidden");
+        renderHistory();
+      } else {
+        tabAdv.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm transition flex items-center justify-center gap-1.5";
+        pAdv.classList.remove("hidden");
+      }
+    }
+
+    function checkAuthState() {
+      const token = localStorage.getItem("token");
+      const username = localStorage.getItem("username");
+      const authWrapper = document.getElementById("auth-wrapper");
+      const dashboardContainer = document.getElementById("dashboard-container");
+      const userBadge = document.getElementById("user-badge");
+      const usernameDisplay = document.getElementById("username-display");
+
+      if (token && username) {
+        authWrapper.classList.add("hidden");
+        dashboardContainer.classList.remove("hidden");
+        userBadge.classList.remove("hidden");
+        userBadge.classList.add("flex");
+        usernameDisplay.textContent = username;
+        document.getElementById("weather-status-pill").classList.remove("hidden");
+        loadFavorites();
+        renderHistory();
+        quickSearch("Pune");
+      } else {
+        authWrapper.classList.remove("hidden");
+        dashboardContainer.classList.add("hidden");
+        userBadge.classList.add("hidden");
+        userBadge.classList.remove("flex");
+        applyAuthTheme();
+      }
+    }
+
+    async function registerUser() {
+      const username = document.getElementById("reg-username").value.trim();
+      const password = document.getElementById("reg-password").value.trim();
+
+      if (!username || !password) {
+        showToast("Please enter both username and password", true);
+        return;
+      }
+
+      try {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast("Account created successfully! Please log in.");
+          switchAuthTab("login");
+          document.getElementById("login-username").value = username;
+        } else {
+          showToast(data.detail || "Registration failed", true);
+        }
+      } catch (err) {
+        showToast("Network error during registration", true);
+      }
+    }
+
+    async function loginUser() {
+      const username = document.getElementById("login-username").value.trim();
+      const password = document.getElementById("login-password").value.trim();
+
+      if (!username || !password) {
+        showToast("Please enter both username and password", true);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.append("username", username);
+      params.append("password", password);
+
+      try {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: params
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("token", data.access_token);
+          localStorage.setItem("username", username);
+          showToast(`Welcome back, ${username}!`);
+          checkAuthState();
+        } else {
+          showToast(data.detail || "Invalid username or password", true);
+        }
+      } catch (err) {
+        showToast("Network error during login", true);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      showToast("Logged out successfully");
+      checkAuthState();
+    }
+
+    function getWeatherIcon(themeType, isDay) {
+      if (themeType === "sunny") return '<i class="fa-solid fa-sun text-amber-400"></i>';
+      if (themeType === "night") return '<i class="fa-solid fa-moon text-indigo-300"></i>';
+      if (themeType === "rainy") return '<i class="fa-solid fa-cloud-showers-heavy text-cyan-400"></i>';
+      if (themeType === "thunder") return '<i class="fa-solid fa-cloud-bolt text-purple-400"></i>';
+      if (themeType === "snow") return '<i class="fa-solid fa-snowflake text-sky-200"></i>';
+      return isDay ? '<i class="fa-solid fa-cloud-sun text-amber-300"></i>' : '<i class="fa-solid fa-cloud-moon text-indigo-200"></i>';
+    }
+
+    function addSearchHistory(cityName, countryName, temp) {
+      let history = JSON.parse(localStorage.getItem("weather_search_history") || "[]");
+      history = history.filter(h => h.city.toLowerCase() !== cityName.toLowerCase());
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      history.unshift({ city: cityName, country: countryName, temp: temp, time: timeStr });
+      if (history.length > 8) history.pop();
+      localStorage.setItem("weather_search_history", JSON.stringify(history));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem("weather_search_history") || "[]");
+      const container = document.getElementById("history-list");
+      if (history.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">No recent searches yet.</p>';
+        return;
+      }
+      container.innerHTML = history.map(item => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition group cursor-pointer" onclick="quickSearch('${item.city}')">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-indigo-400 text-xs"></i>
+            <div>
+              <p class="font-medium text-xs text-slate-200 group-hover:text-indigo-300 transition">${item.city}</p>
+              <span class="text-[10px] text-slate-500">${item.time}</span>
+            </div>
+          </div>
+          <span class="text-xs font-bold text-slate-300">${item.temp ? item.temp + '°C' : ''}</span>
+        </div>
+      `).join("");
+    }
+
+    function clearHistory() {
+      localStorage.removeItem("weather_search_history");
+      renderHistory();
+      showToast("Search history cleared");
+    }
+
+    async function searchWeather(cityOverride) {
+      const city = cityOverride || document.getElementById("city-input").value.trim();
+      if (!city) {
+        showToast("Please enter a city name", true);
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(`/weather/${encodeURIComponent(city)}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          currentCity = data.city;
+          applyWeatherTheme(data.theme_type);
+          addSearchHistory(data.city, data.country, data.temperature_celsius);
+
+          document.getElementById("weather-placeholder").classList.add("hidden");
+          document.getElementById("weather-data").classList.remove("hidden");
+
+          document.getElementById("w-city").textContent = data.city;
+          document.getElementById("w-country").textContent = data.country;
+          document.getElementById("w-temp").textContent = data.temperature_celsius;
+          document.getElementById("w-wind").textContent = data.windspeed_kmh;
+          document.getElementById("w-condition-tag").textContent = data.condition;
+
+          const dayIcon = document.getElementById("w-day-icon");
+          const dayText = document.getElementById("w-day-text");
+          if (data.is_day) {
+            dayIcon.innerHTML = '<i class="fa-solid fa-sun text-amber-400"></i>';
+            dayText.textContent = "Daytime";
+          } else {
+            dayIcon.innerHTML = '<i class="fa-solid fa-moon text-indigo-300"></i>';
+            dayText.textContent = "Nighttime";
+          }
+
+          const rainBadge = document.getElementById("w-rain-badge");
+          if (data.prediction && data.prediction.rain_expected) {
+            rainBadge.className = "inline-block px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30";
+            rainBadge.innerHTML = '<i class="fa-solid fa-cloud-rain mr-1"></i> Rain Expected';
+          } else {
+            rainBadge.className = "inline-block px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+            rainBadge.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Clear / Dry';
+          }
+
+          if (data.prediction) {
+            document.getElementById("pred-peak").textContent = data.prediction.peak_temp ? `${data.prediction.peak_temp.temperature}°C (${data.prediction.peak_temp.time})` : "--";
+            document.getElementById("pred-low").textContent = data.prediction.low_temp ? `${data.prediction.low_temp.temperature}°C (${data.prediction.low_temp.time})` : "--";
+            document.getElementById("pred-advisory").textContent = data.prediction.advisory;
+          }
+
+          if (data.metrics) {
+            document.getElementById("metric-feels").textContent = data.metrics.feels_like;
+            document.getElementById("metric-humidity").textContent = data.metrics.humidity;
+            document.getElementById("metric-pressure").textContent = data.metrics.pressure;
+            document.getElementById("metric-clouds").textContent = data.metrics.cloud_cover;
+            document.getElementById("metric-wind-dir").textContent = `${data.metrics.wind_direction}°`;
+
+            document.getElementById("advice-clothing").textContent = data.metrics.clothing_advice;
+            document.getElementById("advice-outdoor").textContent = data.metrics.outdoor_advice;
+          }
+
+          renderWeatherSimulation(data.theme_type, data.is_day, data.condition);
+
+          const windDuration = Math.max(0.4, (35 / Math.max(4, data.windspeed_kmh))).toFixed(2);
+          document.getElementById("sim-windmill").style.animationDuration = `${windDuration}s`;
+          document.getElementById("sim-wind-val").textContent = `${data.windspeed_kmh} km/h`;
+
+          const cycleIcon = document.getElementById("sim-cycle-icon");
+          const cycleVal = document.getElementById("sim-cycle-val");
+          if (data.is_day) {
+            cycleIcon.className = "fa-solid fa-sun text-amber-400";
+            cycleVal.textContent = "Daylight";
+          } else {
+            cycleIcon.className = "fa-solid fa-moon text-indigo-300";
+            cycleVal.textContent = "Nightfall";
+          }
+
+          const hourlyContainer = document.getElementById("hourly-forecast-list");
+          if (data.hourly_forecast && data.hourly_forecast.length > 0) {
+            hourlyContainer.innerHTML = data.hourly_forecast.map(item => `
+              <div class="flex-shrink-0 w-24 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex flex-col items-center justify-between text-center transition">
+                <span class="text-xs font-medium text-slate-400">${item.time}</span>
+                <div class="my-2 text-xl">
+                  ${getWeatherIcon(item.theme_type, true)}
+                </div>
+                <span class="text-sm font-bold text-white">${item.temperature}°C</span>
+                <span class="text-[10px] text-slate-400 mt-1 truncate max-w-full">${item.condition}</span>
+              </div>
+            `).join("");
+          } else {
+            hourlyContainer.innerHTML = '<p class="text-xs text-slate-500">Hourly data unavailable</p>';
+          }
+
+          document.getElementById("btn-fav").innerHTML = '<i class="fa-regular fa-star"></i> Save to Favorites';
+        } else {
+          if (res.status === 401) {
+            logout();
+            showToast("Session expired, please login again", true);
+          } else {
+            showToast(data.detail || "Could not find weather for this city", true);
+          }
+        }
+      } catch (err) {
+        showToast("Failed to fetch weather data", true);
+      }
+    }
+
+    function quickSearch(cityName) {
+      document.getElementById("city-input").value = cityName;
+      searchWeather(cityName);
+    }
+
+    async function addToFavorites() {
+      if (!currentCity) return;
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch("/favorites", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ city_name: currentCity })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`${currentCity} added to favorites!`);
+          document.getElementById("btn-fav").innerHTML = '<i class="fa-solid fa-star text-amber-400"></i> Saved';
+          loadFavorites();
+        } else {
+          showToast(data.detail || "Failed to add favorite", true);
+        }
+      } catch (err) {
+        showToast("Error saving favorite", true);
+      }
+    }
+
+    async function loadFavorites() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const res = await fetch("/favorites", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const listContainer = document.getElementById("favorites-list");
+
+        if (res.ok && data.length > 0) {
+          listContainer.innerHTML = data.map(item => `
+            <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition group cursor-pointer" onclick="quickSearch('${item.city_name}')">
+              <span class="font-medium text-sm text-slate-200 group-hover:text-indigo-300 transition flex items-center gap-2">
+                <i class="fa-solid fa-location-dot text-indigo-400 text-xs"></i> ${item.city_name}
+              </span>
+              <span class="text-xs text-slate-500 group-hover:text-white transition">View &rarr;</span>
+            </div>
+          `).join("");
+        } else {
+          listContainer.innerHTML = '<p class="text-xs text-slate-500 py-6 text-center">No favorites added yet.</p>';
+        }
+      } catch (err) {
+        console.error("Failed to load favorites", err);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", checkAuthState);
+  </script>
+</body>
+</html>
